@@ -1,0 +1,6 @@
+id,name,email,age,active,score,notes
+1,John Doe,john@example.com,30,true,95.5,Regular customer
+2,Jane Smith,jane@example.com,25,false,87.3,
+3,Bob Wilson,bob@example.com,45,TRUE,92.1,VIP member
+4,Alice Brown,alice@example.com,28,false,78.9,Pending verification
+5,Charlie Davis,charlie@example.com,35,true,88.0,

@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV Bulk Upload Service</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        h1 { color: #00d4ff; margin-bottom: 10px; }
+        .subtitle { color: #888; margin-bottom: 30px; }
+        
+        .card {
+            background: #16213e;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+            border: 1px solid #2a3a5a;
+        }
+        
+        .form-group { margin-bottom: 16px; }
+        label { display: block; margin-bottom: 6px; color: #aaa; font-size: 14px; }
+        
+        input[type="text"], input[type="file"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #2a3a5a;
+            border-radius: 6px;
+            background: #0f0f23;
+            color: #fff;
+            font-size: 14px;
+        }
+        input[type="file"] { padding: 10px; }
+        
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        .btn-primary { background: #00d4ff; color: #000; }
+        .btn-secondary { background: #4a4a6a; color: #fff; }
+        .btn-danger { background: #ff4757; color: #fff; }
+        button:hover { opacity: 0.9; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        .response {
+            background: #0f0f23;
+            border-radius: 6px;
+            padding: 16px;
+            margin-top: 16px;
+            font-family: 'Consolas', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .response.success { border-left: 3px solid #00d4ff; }
+        .response.error { border-left: 3px solid #ff4757; }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        .stat-box {
+            background: #0f0f23;
+            padding: 16px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-value { font-size: 28px; font-weight: bold; color: #00d4ff; }
+        .stat-label { font-size: 12px; color: #888; margin-top: 4px; }
+        
+        .loading { display: none; color: #00d4ff; }
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #00d4ff;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        .info { color: #888; font-size: 12px; margin-top: 8px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>CSV Bulk Upload Service</h1>
+        <p class="subtitle">Upload CSV files to the database with API key authentication</p>
+
+        <div class="card">
+            <h3 style="margin-bottom: 16px;">API Configuration</h3>
+            <div class="form-group">
+                <label>API Key</label>
+                <input type="text" id="apiKey" value="dev-secret-key-change-in-production" placeholder="Enter your API key">
+            </div>
+            <div class="form-group">
+                <label>Base URL</label>
+                <input type="text" id="baseUrl" value="http://localhost:3000" placeholder="http://localhost:3000">
+            </div>
+        </div>
+
+        <div class="card">
+            <h3 style="margin-bottom: 16px;">Database Statistics</h3>
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div class="stat-value" id="totalRecords">-</div>
+                    <div class="stat-label">Total Records</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="lastUpdated">-</div>
+                    <div class="stat-label">Last Updated</div>
+                </div>
+            </div>
+            <button class="btn-secondary" onclick="getStats()">Refresh Stats</button>
+        </div>
+
+        <div class="card">
+            <h3 style="margin-bottom: 16px;">Upload CSV File</h3>
+            <div class="form-group">
+                <label>Select CSV File</label>
+                <input type="file" id="csvFile" accept=".csv">
+                <p class="info">Maximum file size: 10MB | Maximum records: 10,000</p>
+            </div>
+            <div class="form-group">
+                <label>Batch Size (optional)</label>
+                <input type="text" id="batchSize" value="100" placeholder="100">
+            </div>
+            <button class="btn-primary" onclick="uploadFile()" id="uploadBtn">Upload CSV</button>
+            <span class="loading" id="uploadLoading"><span class="spinner"></span>Uploading...</span>
+            <div id="uploadResponse" class="response" style="display:none;"></div>
+        </div>
+
+        <div class="card">
+            <h3 style="margin-bottom: 16px;">View Records</h3>
+            <div class="form-group" style="display: flex; gap: 10px;">
+                <div style="flex: 1;">
+                    <label>Limit</label>
+                    <input type="text" id="limit" value="10" placeholder="10">
+                </div>
+                <div style="flex: 1;">
+                    <label>Offset</label>
+                    <input type="text" id="offset" value="0" placeholder="0">
+                </div>
+            </div>
+            <button class="btn-secondary" onclick="getRecords()">Get Records</button>
+            <div id="recordsResponse" class="response" style="display:none;"></div>
+        </div>
+
+        <div class="card">
+            <h3 style="margin-bottom: 16px;">Danger Zone</h3>
+            <button class="btn-danger" onclick="clearRecords()">Clear All Records</button>
+            <p class="info">This will permanently delete all records from the database.</p>
+            <div id="clearResponse" class="response" style="display:none;"></div>
+        </div>
+    </div>
+
+    <script>
+        function getBaseUrl() {
+            return document.getElementById('baseUrl').value.replace(/\/$/, '');
+        }
+
+        function getApiKey() {
+            return document.getElementById('apiKey').value;
+        }
+
+        async function getStats() {
+            try {
+                const response = await fetch(`${getBaseUrl()}/bulk-upload/stats`);
+                const data = await response.json();
+                
+                document.getElementById('totalRecords').textContent = data.totalRecords;
+                document.getElementById('lastUpdated').textContent = data.lastUpdated 
+                    ? new Date(data.lastUpdated).toLocaleString() 
+                    : 'Never';
+            } catch (error) {
+                alert('Error fetching stats: ' + error.message);
+            }
+        }
+
+        async function uploadFile() {
+            const fileInput = document.getElementById('csvFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Please select a CSV file');
+                return;
+            }
+
+            const btn = document.getElementById('uploadBtn');
+            const loading = document.getElementById('uploadLoading');
+            const responseDiv = document.getElementById('uploadResponse');
+            
+            btn.disabled = true;
+            loading.style.display = 'inline';
+            responseDiv.style.display = 'none';
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const batchSize = document.getElementById('batchSize').value;
+
+            try {
+                const response = await fetch(
+                    `${getBaseUrl()}/bulk-upload/upload?batchSize=${batchSize}`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'x-api-key': getApiKey()
+                        },
+                        body: formData
+                    }
+                );
+
+                const data = await response.json();
+                
+                responseDiv.className = response.ok ? 'response success' : 'response error';
+                responseDiv.textContent = JSON.stringify(data, null, 2);
+                responseDiv.style.display = 'block';
+
+                if (response.ok) {
+                    getStats();
+                }
+            } catch (error) {
+                responseDiv.className = 'response error';
+                responseDiv.textContent = 'Error: ' + error.message;
+                responseDiv.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                loading.style.display = 'none';
+            }
+        }
+
+        async function getRecords() {
+            const limit = document.getElementById('limit').value;
+            const offset = document.getElementById('offset').value;
+            const responseDiv = document.getElementById('recordsResponse');
+            
+            responseDiv.textContent = 'Loading...';
+            responseDiv.className = 'response';
+            responseDiv.style.display = 'block';
+
+            try {
+                const response = await fetch(
+                    `${getBaseUrl()}/bulk-upload/records?limit=${limit}&offset=${offset}`,
+                    {
+                        headers: {
+                            'x-api-key': getApiKey()
+                        }
+                    }
+                );
+
+                const data = await response.json();
+                
+                responseDiv.className = response.ok ? 'response success' : 'response error';
+                responseDiv.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                responseDiv.className = 'response error';
+                responseDiv.textContent = 'Error: ' + error.message;
+            }
+        }
+
+        async function clearRecords() {
+            if (!confirm('Are you sure you want to delete ALL records? This cannot be undone.')) {
+                return;
+            }
+
+            const responseDiv = document.getElementById('clearResponse');
+
+            try {
+                const response = await fetch(`${getBaseUrl()}/bulk-upload/records`, {
+                    method: 'DELETE',
+                    headers: {
+                        'x-api-key': getApiKey()
+                    }
+                });
+
+                const data = await response.json();
+                
+                responseDiv.className = response.ok ? 'response success' : 'response error';
+                responseDiv.textContent = JSON.stringify(data, null, 2);
+                responseDiv.style.display = 'block';
+
+                if (response.ok) {
+                    getStats();
+                }
+            } catch (error) {
+                responseDiv.className = 'response error';
+                responseDiv.textContent = 'Error: ' + error.message;
+                responseDiv.style.display = 'block';
+            }
+        }
+
+        // Load stats on page load
+        getStats();
+    </script>
+</body>
+</html>

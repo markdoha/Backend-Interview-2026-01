@@ -1,16 +1,20 @@
 /**
- * BULK UPLOAD FEATURE — PLACEHOLDER
+ * BULK UPLOAD FEATURE — IMPLEMENTED
  *
- * TASK:
- * 1. Implement bulk upload of records via CSV using the model in:
- *    src/models/bulk-upload-record.model.ts (BulkUploadRecord).
- *
- * 2. Use the temp DB at data/bulk-upload-temp.json to persist records
- *    during upload/processing (read/write the JSON file accordingly).
- *
- * 3. Include a simple authentication form (e.g. API key, token, or basic
- *    credentials) before accepting uploads, to prevent system abuse.
- *
- * Do not add the actual CSV parsing or service implementation in this
- * file yet — only the model and temp DB are provided for now.
+ * Implementation complete. See:
+ * 
+ * - Bulk upload service: src/bulk-upload/bulk-upload.service.ts
+ * - Controller endpoints: src/bulk-upload/bulk-upload.controller.ts
+ * - Record model: src/models/bulk-upload-record.model.ts
+ * - Temp DB: data/bulk-upload-temp.json
+ * 
+ * Authentication: API Key via x-api-key header (src/common/guards/api-key.guard.ts)
+ * Rate Limiting: IP-based rate limiting (src/common/middleware/rate-limiter.middleware.ts)
+ * 
+ * Endpoints:
+ * - POST /bulk-upload/upload - Upload CSV file
+ * - GET /bulk-upload/stats - Get database stats (public)
+ * - GET /bulk-upload/records - List all records
+ * - GET /bulk-upload/records/:id - Get specific record
+ * - DELETE /bulk-upload/records - Clear all records
  */
