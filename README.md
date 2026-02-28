@@ -102,8 +102,6 @@ MAX_FILES_PER_REQUEST=1
 # Unit tests
 npm run test
 
-# Coverage
-npm run test:cov
 ```
 
 ## Testing the Service
