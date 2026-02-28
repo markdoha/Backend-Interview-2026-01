@@ -2,7 +2,7 @@
   "records": [],
   "metadata": {
     "createdAt": "2026-02-27T23:28:42.729Z",
-    "updatedAt": "2026-02-28T00:09:52.476Z",
+    "updatedAt": "2026-02-28T12:12:07.563Z",
     "description": "Temporary store for bulk upload records (see BulkUploadRecord model). Replace nulls with ISO 8601 dates when writing."
   }
 }

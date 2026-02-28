@@ -145,7 +145,8 @@
                 <input type="text" id="batchSize" value="100" placeholder="100">
             </div>
             <button class="btn-primary" onclick="uploadFile()" id="uploadBtn">Upload CSV</button>
-            <span class="loading" id="uploadLoading"><span class="spinner"></span>Uploading...</span>
+            <span class="loading" id="uploadLoading"><span class="spinner"></span>Processing...</span>
+            <span class="success-msg" id="uploadSuccess" style="display:none; color: #4cd137; font-weight: bold; margin-left: 8px;">✓ Done!</span>
             <div id="uploadResponse" class="response" style="display:none;"></div>
         </div>
 
@@ -207,10 +208,12 @@
 
             const btn = document.getElementById('uploadBtn');
             const loading = document.getElementById('uploadLoading');
+            const successMsg = document.getElementById('uploadSuccess');
             const responseDiv = document.getElementById('uploadResponse');
             
             btn.disabled = true;
             loading.style.display = 'inline';
+            if (successMsg) successMsg.style.display = 'none';
             responseDiv.style.display = 'none';
 
             const formData = new FormData();
@@ -238,6 +241,7 @@
 
                 if (response.ok) {
                     getStats();
+                    if (successMsg) successMsg.style.display = 'inline';
                 }
             } catch (error) {
                 responseDiv.className = 'response error';

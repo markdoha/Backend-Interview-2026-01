@@ -110,6 +110,60 @@ describe('BulkUploadService', () => {
         BadRequestException,
       );
     });
+
+    it('should insert records in batches according to batchSize', async () => {
+      // 5 rows
+      const csvContent = 'name\nJohn\nJane\nJim\nJill\nJack';
+      const file = {
+        buffer: Buffer.from(csvContent),
+        size: csvContent.length,
+        originalname: 'test.csv',
+        mimetype: 'text/csv',
+      } as Express.Multer.File;
+
+      // Mock resolves depending on call. 
+      // insertRecords normally returns an array of the inserted records
+      mockDatabaseService.insertRecords
+        .mockResolvedValueOnce([{ id: '1', data: { name: 'John' } }, { id: '2', data: { name: 'Jane' } }])
+        .mockResolvedValueOnce([{ id: '3', data: { name: 'Jim' } }, { id: '4', data: { name: 'Jill' } }])
+        .mockResolvedValueOnce([{ id: '5', data: { name: 'Jack' } }]);
+
+      // Process with batch size of 2
+      const result = await service.processCsvFile(file, 2);
+
+      expect(result.success).toBe(true);
+      expect(result.totalRows).toBe(5);
+      expect(result.recordsProcessed).toBe(5);
+      expect(mockDatabaseService.insertRecords).toHaveBeenCalledTimes(3);
+    });
+  });
+
+  describe('parseValue', () => {
+    it('should parse boolean strings', () => {
+      const testService = new BulkUploadService(mockConfigService as any, mockDatabaseService as any);
+      
+      expect((testService as any).parseValue('true')).toBe(true);
+      expect((testService as any).parseValue('TRUE')).toBe(true);
+      expect((testService as any).parseValue('false')).toBe(false);
+    });
+
+    it('should parse numeric strings', () => {
+      const testService = new BulkUploadService(mockConfigService as any, mockDatabaseService as any);
+      expect((testService as any).parseValue('42')).toBe(42);
+      expect((testService as any).parseValue('3.14')).toBe(3.14);
+      expect((testService as any).parseValue('-10')).toBe(-10);
+    });
+
+    it('should return null for empty values', () => {
+      const testService = new BulkUploadService(mockConfigService as any, mockDatabaseService as any);
+      expect((testService as any).parseValue('')).toBe(null);
+      expect((testService as any).parseValue(null)).toBe(null);
+    });
+
+    it('should return string for non-parseable values', () => {
+      const testService = new BulkUploadService(mockConfigService as any, mockDatabaseService as any);
+      expect((testService as any).parseValue('hello')).toBe('hello');
+    });
   });
 
 });

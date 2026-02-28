@@ -20,8 +20,8 @@ export class BulkUploadService {
     private readonly configService: ConfigService,
     private readonly databaseService: DatabaseService,
   ) {
-    this.maxFileSize = this.configService.get<number>('MAX_FILE_SIZE_BYTES', 10485760);
-    this.maxRecords = this.configService.get<number>('MAX_RECORDS_PER_UPLOAD', 10000);
+    this.maxFileSize = this.configService.get<number>('MAX_FILE_SIZE_BYTES', 52428800); // 50MB
+    this.maxRecords = this.configService.get<number>('MAX_RECORDS_PER_UPLOAD', 100000);
     
     const mimeTypesStr = this.configService.get<string>(
       'ALLOWED_MIME_TYPES',
@@ -39,6 +39,7 @@ export class BulkUploadService {
     const records: BulkUploadRecord[] = [];
     const errors: Array<{ row: number; error: string }> = [];
     let rowCount = 0;
+    let recordsProcessed = 0;
 
     const parser = csvParse.parse(file.buffer, {
       columns: true,
@@ -59,6 +60,13 @@ export class BulkUploadService {
       try {
         const processedRecord = this.processRecord(record, rowCount);
         records.push(processedRecord);
+
+        // Flash batch into database when size is met
+        if (records.length >= batchSize) {
+          const inserted = await this.databaseService.insertRecords(records);
+          recordsProcessed += inserted.length;
+          records.length = 0; // Clear memory array
+        }
       } catch (error) {
         errors.push({
           row: rowCount,
@@ -67,18 +75,23 @@ export class BulkUploadService {
       }
     }
 
-    if (records.length === 0) {
-      throw new BadRequestException('No valid records found in CSV file');
+    // Insert remaining records if any
+    if (records.length > 0) {
+      const inserted = await this.databaseService.insertRecords(records);
+      recordsProcessed += inserted.length;
+      records.length = 0;
     }
 
-    const insertedRecords = await this.insertInBatches(records, batchSize);
+    if (recordsProcessed === 0 && errors.length === 0) {
+      throw new BadRequestException('No valid records found in CSV file');
+    }
 
     return {
       success: true,
       totalRows: rowCount,
-      recordsProcessed: insertedRecords.length,
+      recordsProcessed,
       errors: errors.length > 0 ? errors : undefined,
-      message: `Successfully processed ${insertedRecords.length} records`,
+      message: `Successfully processed ${recordsProcessed} records`,
     };
   }
 
@@ -141,20 +154,7 @@ export class BulkUploadService {
     return trimmed;
   }
 
-  private async insertInBatches(
-    records: BulkUploadRecord[],
-    batchSize: number,
-  ): Promise<BulkUploadRecord[]> {
-    const inserted: BulkUploadRecord[] = [];
 
-    for (let i = 0; i < records.length; i += batchSize) {
-      const batch = records.slice(i, i + batchSize);
-      const result = await this.databaseService.insertRecords(batch);
-      inserted.push(...result);
-    }
-
-    return inserted;
-  }
 
   async getStats() {
     return this.databaseService.getStats();
